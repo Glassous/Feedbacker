@@ -13,3 +13,5 @@ server/feedbacker-test.exe
 docs
 *.md
 Makefile
+deploy
+.github

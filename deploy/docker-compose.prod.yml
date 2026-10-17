@@ -1,0 +1,50 @@
+# 生产环境 compose：在服务器上运行，只拉取云端构建好的镜像，不做任何构建。
+# 由 GitHub Actions 上传为 /opt/feedbacker/docker-compose.yml。
+# 所有配置项来自 /opt/feedbacker/.env（部署脚本使用 docker compose --env-file .env）。
+name: feedbacker
+
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    command: ["mongod", "--bind_ip_all", "--quiet"]
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  app:
+    # 具体标签由 deploy-backend.sh 通过 APP_IMAGE 注入，例如 .../feedbacker:sha-1a2b3c4
+    image: ${APP_IMAGE:-ghcr.io/glassous/feedbacker:latest}
+    restart: unless-stopped
+    depends_on:
+      mongo:
+        condition: service_healthy
+    ports:
+      - "${PORT:-9090}:9090"
+    environment:
+      MONGO_URI: ${MONGO_URI:-mongodb://mongo:27017}
+      MONGO_DB: ${MONGO_DB:-feedbacker}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      JWT_SECRET: ${JWT_SECRET:-}
+      JWT_TTL_HOURS: ${JWT_TTL_HOURS:-12}
+      CORS_ORIGINS: ${CORS_ORIGINS:-*}
+      TRUST_PROXY: ${TRUST_PROXY:-false}
+      FEEDBACK_API_KEY: ${FEEDBACK_API_KEY:-}
+      RATE_LIMIT_PER_MINUTE: ${RATE_LIMIT_PER_MINUTE:-60}
+      SITE_NAME: ${SITE_NAME:-Feedbacker}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      TZ: ${TZ:-Asia/Shanghai}
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:9090/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+volumes:
+  mongo-data:

@@ -1,0 +1,85 @@
+name: Admin
+
+# 云端构建管理后台静态文件，打包后通过 SSH 覆盖到服务器站点目录。
+# 服务器上不做任何构建。
+on:
+  push:
+    branches: [main]
+    paths:
+      - "admin/**"
+      - "deploy/deploy-admin.sh"
+      - ".github/workflows/admin.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: admin-deploy
+  cancel-in-progress: false
+
+env:
+  # 后台页面直接请求 API 域名（跨域）；如需同源部署改为 /api 并在站点上反代 /api
+  ADMIN_API_BASE_URL: https://feedback.glassous.top/api
+  # 1Panel 站点目录下的 dist（Nginx root 需指向此目录）
+  ADMIN_DIST_DIR: /opt/1panel/www/sites/feedbackeradmin.vodyanitsa.top/index/dist
+  SSH_HOST_ALIAS: feedbacker-prod
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-deploy:
+    name: 构建并发布
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 准备 Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: admin/package-lock.json
+
+      - name: 构建管理后台
+        working-directory: admin
+        env:
+          VITE_API_BASE_URL: ${{ env.ADMIN_API_BASE_URL }}
+        run: |
+          set -euo pipefail
+          npm ci
+          npm run build
+
+      - name: 配置 SSH
+        env:
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+          SERVER_SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
+        run: |
+          set -euo pipefail
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SERVER_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$SERVER_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          cat >> ~/.ssh/config <<EOF
+          Host ${SSH_HOST_ALIAS}
+            HostName ${SERVER_HOST}
+            User ${SERVER_USER}
+            IdentityFile ~/.ssh/deploy_key
+            IdentitiesOnly yes
+            ServerAliveInterval 30
+          EOF
+          chmod 600 ~/.ssh/config
+
+      - name: 上传部署脚本
+        run: |
+          set -euo pipefail
+          scp -q deploy/deploy-admin.sh "${SSH_HOST_ALIAS}:/tmp/"
+
+      - name: 发布静态文件
+        run: |
+          set -euo pipefail
+          tar -czf - -C admin/dist . | ssh "$SSH_HOST_ALIAS" "bash /tmp/deploy-admin.sh '${ADMIN_DIST_DIR}'"
+
+      - name: 写入摘要
+        run: |
+          echo "已发布到 \`${ADMIN_DIST_DIR}\`，接口地址 \`${ADMIN_API_BASE_URL}\`" >> "$GITHUB_STEP_SUMMARY"

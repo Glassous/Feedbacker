@@ -54,7 +54,15 @@ npm run build
 npm run preview
 ```
 
-将 `admin/dist` 上传到 Nginx、Caddy 或任意静态托管服务，并由静态服务器把 `/api` 代理到后端（示例见 [`admin/deploy/nginx.conf`](admin/deploy/nginx.conf)）。后台始终以同源方式访问接口，无需额外配置 API 地址或跨域。
+将 `admin/dist` 上传到 Nginx、Caddy 或任意静态托管服务（示例见 [`admin/deploy/nginx.conf`](admin/deploy/nginx.conf)）。后台与 API 分域名部署时，构建时注入接口地址：
+
+```bash
+VITE_API_BASE_URL=https://feedback.glassous.top/api npm run build
+```
+
+并在后端 `.env` 中把 `CORS_ORIGINS` 设置为后台域名。若采用同源部署（静态服务器把 `/api` 反代到后端），不设置该变量即可。
+
+前后端的云端构建与服务器发布由 GitHub Actions 完成，见 [部署与运维](docs/deploy.md) 的「CI/CD」一节。
 
 ## 接入示例
 
@@ -139,7 +147,9 @@ make build
 │       ├── handler/        # HTTP 接口
 │       ├── middleware/     # 日志、CORS、限流、鉴权
 │       └── router/         # 路由与中间件编排
+├── deploy/                 # 服务器侧部署脚本与生产 compose（CI 使用）
 ├── docs/                   # 接口与部署文档
+├── .github/workflows/      # 云端构建与发布工作流
 ├── Dockerfile
 └── docker-compose.yml
 ```

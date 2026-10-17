@@ -51,8 +51,11 @@ export interface AdminInfo {
   mustChangePassword: boolean
 }
 
+// 构建时可通过 VITE_API_BASE_URL 指向独立部署的 API（跨域），未设置时使用同源 /api
+const apiBaseURL = (import.meta.env.VITE_API_BASE_URL ?? '').trim().replace(/\/+$/, '')
+
 const client = axios.create({
-  baseURL: '/api',
+  baseURL: apiBaseURL || '/api',
   timeout: 20000,
   headers: { Accept: 'application/json' },
 })
