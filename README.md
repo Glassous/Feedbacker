@@ -165,3 +165,7 @@ make build
 - 公网部署时建议设置 `FEEDBACK_API_KEY`，并在接入方请求中携带 `X-API-Key`。
 - 将 `CORS_ORIGINS` 收敛到实际接入的域名，而不是保持 `*`。
 - 位于反向代理之后时设置 `TRUST_PROXY=true`，以保证限流基于真实客户端 IP。
+
+## 许可证
+
+本项目基于 [MIT 许可证](LICENSE) 开源。
