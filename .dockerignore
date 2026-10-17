@@ -1,0 +1,15 @@
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+
+**/node_modules
+admin/dist
+server/feedbacker
+server/feedbacker-test.exe
+*.log
+.tmp
+docs
+*.md
+Makefile

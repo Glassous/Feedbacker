@@ -1,0 +1,15 @@
+# Node
+admin/node_modules/
+admin/dist/
+
+# Go
+server/feedbacker
+server/feedbacker-test.exe
+server/bin/
+*.exe
+
+# 本地配置与日志
+.env
+.env.local
+*.log
+.tmp/
